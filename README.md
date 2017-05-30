@@ -10,7 +10,7 @@ Epoll时间设置为ET和EPOLLONESHOT，只在状态改变的时候才通知，�
 
 目前的只解析了http的请求行（使用线程特定数据保存），首部还没有解析。
 
-#hserver version2:
+# hserver version2:
 
 实现首部部分字段的解析
 

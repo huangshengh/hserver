@@ -12,6 +12,6 @@
 pthread_mutex_t workmutex;
 
 int transfer(int fd,char *uri);
-int httpin(int fd);
+int httpin(int epfd,int fd);
 
 #endif

@@ -8,7 +8,7 @@
 extern struct epoll_event* events;//在epoll.c中申请了空间
 pthread_mutex_t clifdmutex=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t clifdcond=PTHREAD_COND_INITIALIZER;
-
+int epfd;
 int main(int argc, char *argv[])
 {
 	int listenfd,connfd,n;
@@ -40,7 +40,6 @@ int main(int argc, char *argv[])
     }
 
 	//加入epoll的是listenfd和每次连接的connfd，
-	int epfd;
 	epfd= hepoll_create(0);
 	struct epoll_event event;
 	event.events = EPOLLIN|EPOLLET;
@@ -78,19 +77,19 @@ int main(int argc, char *argv[])
 				hepoll_add(epfd,connfd,&event);
 				loginfo("server epoll add a connfd to interest list");
 				clifd[iput]= connfd;//添加到clifd,clifd最多有128个，但是工作的线程只有8个
-				if(++iput == MAXNCLI)//64,从头开始,把前面的clifd里面的fd换掉
+				if((++iput)%MAXNCLI == 0)//64,从头开始,把前面的clifd里面的fd换掉
 					iput=0;
 				//input的connd的时候如果前面有数据，说明已经循环了clifd，我们把前面的fd删掉，并且epfd中也不再关注
 				int i = iput+1;
-				if(clifd[i]!=0)
+				if(clifd[iput]!=0)
 				{
-					hepoll_del(epfd,clifd[i],NULL);//所以我们每个fd都会alive一个数组轮回的时间
-					close(clifd[i]);
+					//hepoll_del(epfd,clifd[i],NULL);//所以我们每个fd都会alive一个数组轮回的时间
+					close(clifd[iput]);
 				}
 				if(iput==iget)//我们input比get大了一圈，因为get是使用信号增加的，所以get不会跑到input前面
 				{
 					//线程处理的比较慢
-					sleep(2);//睡一会。
+					sleep(1);//睡一会。
 				}
 				pthread_cond_signal(&clifdcond);//发送信号
 				pthread_mutex_unlock(&clifdmutex);//然后解锁，线程就去为客户服务，我们主线程就去做自己的事情
@@ -99,11 +98,10 @@ int main(int argc, char *argv[])
 			//else我们直接来操作，说明这是一个已连接的描述符。
 			else 
 			{
-				 if ((events[i].events & EPOLLERR) ||(events[i].events & EPOLLHUP) ||
-                    (!(events[i].events & EPOLLIN))) //这些fd都不用处理
+				 if ((events[i].events & EPOLLERR) ||(events[i].events & EPOLLHUP) ||(!(events[i].events & EPOLLIN))) //这些fd都不用处理
 				{
-                    logerr("epoll error fd");
-                    hepoll_del(epfd,infd,NULL);
+                    loginfo("client close fd");
+                    //hepoll_del(epfd,infd,NULL);
                     close(infd);
                     continue;
                 }
@@ -112,21 +110,21 @@ int main(int argc, char *argv[])
                 //还是放在clifd里面等着线程取吧
                 pthread_mutex_lock(&clifdmutex);
                 clifd[iput]= infd;
-                if(++iput == MAXNCLI)//62从头开始,把前面的clifd里面的fd换掉
+                if((++iput)%MAXNCLI == 0)//62从头开始,把前面的clifd里面的fd换掉
 					iput=0;
 					//hepoll_del(epfd,clifd[iput],NULL);
 					//close(clifd[iput]);
 				//input的connd的时候如果前面有数据，说明已经循环了clifd，我们把前面的fd删掉，并且epfd中也不再关注
-				int a = iput+1;
-				if(clifd[a]!=0&&infd!=clifd[a])//因为这之前的fd可能已经关闭了
+				//int a = iput+1;
+				if(clifd[iput]!=0)//因为这之前的fd可能已经关闭了
 				{
-					hepoll_del(epfd,clifd[a],NULL);//所以我们每个fd都会alive一个数组轮回的时间
-					close(clifd[a]);
+					//hepoll_del(epfd,clifd[a],NULL);//所以我们每个fd都会alive一个数组轮回的时间
+					close(clifd[iput]);
 				}
 				if(iput==iget)//我们input比get大了一圈，因为get是使用信号增加的，所以get不会跑到input前面
 				{
 					//线程处理的比较慢
-					sleep(2);//睡一会。
+					sleep(1);//睡一会。
 				}
 				pthread_cond_signal(&clifdcond);//发送信号
 				pthread_mutex_unlock(&clifdmutex);

@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "log.h"
-#define MAX_EVENTS 5; 
+//#define MAX_EVENTS 5; 
 
 
 

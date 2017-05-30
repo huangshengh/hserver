@@ -77,12 +77,17 @@ static ssize_t my_read(Rline * tsd,int fd,char *ptr)
 		{
 			if(errno == EINTR)
 				goto again;
-			if(errno == EAGAIN&& errno == EWOULDBLOCK)//没有数据
-				return 0;
+			//if(errno == EAGAIN||errno == EWOULDBLOCK)//没有数据
+				//return 0;
+			if(errno == EBADF)
+				close(fd);
 			return(-1);
 		}
-		else if(tsd->r1_cnt==0)//正常的读完
+		else if(tsd->r1_cnt==0)//没有数据了
+		{
+			//close(fd);
 			return 0;
+		}
 		tsd->r1_bufptr = tsd->r1_buf;
 	}
 	tsd->r1_cnt--;
@@ -117,7 +122,9 @@ ssize_t readline(int fd,void * vptr,size_t maxlen)
 			*ptr =0;
 			return n-1;//返回已读的数
 		}
-		else 
+		else if(errno == EAGAIN||errno==EWOULDBLOCK)
+			return n;//没有数据可读了
+		else
 			return -1;//返回-1，出现错误
 	}
 	*ptr = 0;

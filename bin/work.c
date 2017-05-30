@@ -1,11 +1,12 @@
 #include "work.h"
 //http有关的操作
+#include "epoll.h"
 
 pthread_mutex_t workmutex=PTHREAD_MUTEX_INITIALIZER;
 
 int transfer(int fd,char *uri);
 //从已连接的描述符上读第一行请求，然后解析request line
-int httpin(int fd)
+int httpin(int epfd,int fd)
 {
 	int n;
 	char ptr[readsize];
@@ -14,13 +15,19 @@ int httpin(int fd)
 	char version[32];
 	//只读取第一行。request。
 	//我们的fd是非阻塞的会立马返回，不会等
+	struct epoll_event eve;
+	eve.data.fd = fd;
+	eve.events = EPOLLIN|EPOLLET|EPOLLONESHOT;
 	if((n = readline(fd,ptr,readsize))==-1)
 	{
 		//printf("requestline: %s\n", ptr);
 		logerr("readline from connfd wrong");
 		//close(fd);
+		hepoll_mod(epfd,fd,&eve);
 		return -1;
 	}
+	if(n==0)
+		return 0;
 	//解析第一行
 	sscanf(ptr,"%s %s %s",method,uri,version);
 	//如果是get
@@ -28,14 +35,21 @@ int httpin(int fd)
 	{
 		int i;
 		if((i = transfer(fd,uri))==1)
+		{
+			hepoll_mod(epfd,fd,&eve);
 			return 1;
+		}
 		else
+		{
+			hepoll_mod(epfd,fd,&eve);
 			return -1;
+		}
 	}
 	else
 	{
 		err_respond(fd);
 		//close(fd);
+		hepoll_mod(epfd,fd,&eve);
 		return -1;
 	}
 }

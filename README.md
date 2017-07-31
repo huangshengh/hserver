@@ -1,8 +1,9 @@
 # hserver
 
-## hserver is a simple httpserver with threadpool and epoll. This version has many bugs
+## hserver is a simple httpserver with threadpool and epoll. 
+This version has many bugs
 
-## hserver8  is stronger version. 
+## hserver8  is a stronger version. 
 ### Model
 main thread hold listenfd in epoll,each work thread also has epoll. Main thread use pipe to communicate with work thread,so we can
 tranfer the connfd.

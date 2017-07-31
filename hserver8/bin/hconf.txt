@@ -1,0 +1,4 @@
+port = 12000
+threadnums = 3
+root = ../decroot
+Level = 0
